@@ -1,11 +1,12 @@
-// CuplikCom - Logic & Dynamic Rendering Engine (Anti-AI Slop, High Quality Vanilla JS)
+// CuplikCom - Pure Vanilla JS Engine
+// Spesifikasi: DM Sans only, No Gradients, 10 Kategori, Banner 10s auto-slide, Card 1 & Card 2, Keluh Kesah Rakyat
+
 const $ = (s, e = document) => e.querySelector(s);
 const $$ = (s, e = document) => [...e.querySelectorAll(s)];
 const Q = new URLSearchParams(location.search);
 const P = document.body.dataset.page || 'home';
 
-// Helpers
-const tgl = d => new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+// Storage Helper
 const ls = (k, v) => {
     try {
         if (v === undefined) return JSON.parse(localStorage.getItem(k));
@@ -15,704 +16,762 @@ const ls = (k, v) => {
     }
 };
 
-// Dark mode initialization
+// Date Formatter
+const tglIndo = d => new Date(d).toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+});
+
+// Theme Initialization
 const initTheme = () => {
     const saved = ls('theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-    else document.documentElement.removeAttribute('data-theme');
+    if (saved === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.classList.add('dark');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+        document.documentElement.classList.remove('dark');
+    }
 };
 initTheme();
 
-// Components
-const th = a => `
-    <div class="th" style="--t:${a.tone || '#d9e6dc'}">
-        ${a.loc ? `<span class="th-loc">${a.loc}</span>` : ''}
+// Localization State
+let currentLang = ls('lang') || 'ID';
+
+// Shared Components
+const thImg = (a, aspect = 'aspect-[16/10]') => `
+    <div class="img-zoom-wrap ${aspect} bg-[${a.tone || '#eaf3ec'}] dark:bg-zinc-800">
         ${a.img ? `<img src="${a.img}" alt="${a.t}" loading="lazy" onerror="this.remove()">` : ''}
-        <b>${(a.c || 'C')[0]}</b>
+        <div class="th-art">${(a.c || 'C')[0]}</div>
     </div>
 `;
 
-const inner = (a, showExcerpt = false) => `
-    <span class="tag">${a.c}</span>
-    <h3>${a.t}</h3>
-    ${showExcerpt && a.lead ? `<p class="lead-excerpt">${a.lead.slice(0, 110)}…</p>` : ''}
-    <time>${tgl(a.d)} · ${a.v ? a.v.toLocaleString('id-ID') : 0} pembaca</time>
+// Card Image 1 (Vertical Card)
+// Ketentuan: title, kategori (bg hijau), tanggal, x waktu yang lalu, image
+// Kategori dan tanggal dibungkus div kosong di sebelah kiri (flex space-between / gap),
+// x waktu yang lalu di sebelah kanan menggunakan div kosong lagi, ditaruh di ATAS title.
+// Vertikal, truncate 2 line dengan ..., sedikit border radius.
+const cardImage1 = (a, invertBadge = false) => `
+    <a href="artikel.html?id=${a.id}" class="card-hover flex flex-col group cursor-pointer block">
+        ${thImg(a, 'aspect-[16/10]')}
+        <div class="mt-3 flex flex-col">
+            <div class="flex items-center justify-between text-xs mb-2 gap-2">
+                <div class="flex items-center gap-2">
+                    <div class="${invertBadge ? 'badge-cat-invert' : 'badge-cat'}">${a.c}</div>
+                    <div class="${invertBadge ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}">${tglIndo(a.d)}</div>
+                </div>
+                <div>
+                    <div class="${invertBadge ? 'text-white/70' : 'text-gray-400 dark:text-gray-500'} font-medium">${a.ago || 'Baru saja'}</div>
+                </div>
+            </div>
+            <h3 class="font-bold text-base leading-snug line-clamp-2 ${invertBadge ? 'text-white group-hover:text-green-200' : 'text-[#111111] dark:text-[#f3f4f6] group-hover:text-[#008a24]'} transition-colors">
+                ${a.t}
+            </h3>
+        </div>
+    </a>
 `;
 
-const card = a => `<a class="card" href="artikel.html?id=${a.id}">${th(a)}${inner(a, true)}</a>`;
-const big = a => `<a class="card big" href="artikel.html?id=${a.id}">${th(a)}${inner(a, true)}</a>`;
-const row = a => `<a class="card row" href="artikel.html?id=${a.id}">${th(a)}<div>${inner(a)}</div></a>`;
-const kl = k => `<a href="kanal.html?c=${encodeURIComponent(k)}">${k}</a>`;
+// Card Image 2 (Horizontal Card)
+// Ketentuan: title dan imagenya.
+// Kategori (bg hijau) dan tanggal dibungkus div kosong di sebelah kiri dan ditaruh di ATAS title (flex space-between).
+// x waktu yang lalu ditaruh di BAWAH titlenya.
+// Horizontal, truncate 2 line dengan ..., sedikit border radius.
+const cardImage2 = (a) => `
+    <a href="artikel.html?id=${a.id}" class="card-hover grid grid-cols-[110px_1fr] sm:grid-cols-[130px_1fr] gap-3 items-center group cursor-pointer py-2 block">
+        ${thImg(a, 'aspect-[16/10]')}
+        <div class="flex flex-col justify-center">
+            <div class="flex items-center justify-between text-xs mb-1.5 gap-2">
+                <div class="flex items-center gap-2">
+                    <div class="badge-cat">${a.c}</div>
+                    <div class="text-gray-500 dark:text-gray-400">${tglIndo(a.d)}</div>
+                </div>
+                <div></div>
+            </div>
+            <h3 class="font-bold text-sm sm:text-base leading-snug line-clamp-2 text-[#111111] dark:text-[#f3f4f6] group-hover:text-[#008a24] transition-colors">
+                ${a.t}
+            </h3>
+            <div class="mt-1 text-xs text-gray-400 dark:text-gray-500 font-medium">
+                ${a.ago || 'Baru saja'}
+            </div>
+        </div>
+    </a>
+`;
 
-const user = ls('u');
-const SOC = [
-    ['FB', 'Facebook', 'https://facebook.com/cupliknews'],
-    ['IG', 'Instagram', 'https://instagram.com/cuplikcom'],
-    ['X', 'X / Twitter', 'https://twitter.com/cuplikcom'],
-    ['YT', 'YouTube', 'https://youtube.com/@cuplikcom'],
-    ['WA', 'WhatsApp', 'https://wa.me/6287727030115']
-];
-
-const soc = () => SOC.map(s => `<a href="${s[2]}" target="_blank" rel="noopener" aria-label="${s[1]}" title="${s[1]}">${s[0]}</a>`).join('');
-const ad = (label, ratio = '8/1') => `<div class="ad" style="aspect-ratio:${ratio}">IKLAN & SPONSOR CUPLIKCOM — ${label}</div>`;
-
-const slider = () => {
-    const slides = A.slice(0, 5);
+// Banner Component (10s auto-slide, DM Sans title, low-opacity black solid overlay, bottom-right dots outside)
+const bannerComponent = () => {
+    const bannerItems = A.slice(0, 5);
     return `
-        <div class="sl">
-            <div class="track">
-                ${slides.map(a => `
-                    <a class="slide" href="artikel.html?id=${a.id}">
-                        ${th(a)}
-                        <div class="cap">
-                            <span class="tag">${a.c}</span>
-                            <h3>${a.t}</h3>
-                        </div>
-                    </a>
+        <div>
+            <div class="banner-wrap aspect-[16/8] sm:aspect-[21/9] bg-zinc-800">
+                <div class="banner-track flex transition-transform duration-700 ease-in-out h-full">
+                    ${bannerItems.map(a => `
+                        <a href="artikel.html?id=${a.id}" class="banner-slide flex-[0_0_100%] h-full relative block group">
+                            <div class="w-full h-full bg-[${a.tone || '#1a2920'}] flex items-center justify-center font-bold text-6xl text-white/10">
+                                ${(a.c || 'C')[0]}
+                            </div>
+                            <div class="banner-overlay">
+                                <div class="badge-cat w-max mb-2">${a.c}</div>
+                                <h2 class="text-xl sm:text-3xl md:text-4xl font-extrabold leading-tight text-white mb-2 line-clamp-2 group-hover:text-green-300 transition-colors">
+                                    ${a.t}
+                                </h2>
+                                <div class="text-xs sm:text-sm text-gray-300 flex items-center gap-3">
+                                    <span>${a.author || 'Redaksi Cuplik'}</span>
+                                    <span>•</span>
+                                    <span>${tglIndo(a.d)}</span>
+                                    <span>•</span>
+                                    <span>${a.ago || 'Baru saja'}</span>
+                                </div>
+                            </div>
+                        </a>
+                    `).join('')}
+                </div>
+            </div>
+            <!-- Node/Titik di bawah banner sebelah kanan luar container -->
+            <div class="banner-dots-wrap">
+                ${bannerItems.map((_, i) => `
+                    <button class="banner-dot ${i === 0 ? 'active' : ''}" data-idx="${i}" aria-label="Slide ${i + 1}"></button>
                 `).join('')}
             </div>
-            <button class="sb" data-s="-1" aria-label="Sebelumnya">‹</button>
-            <button class="sb r" data-s="1" aria-label="Berikutnya">›</button>
-            <div class="dots">
-                ${slides.map((_, i) => `<i data-d="${i}" class="${i === 0 ? 'on' : ''}"></i>`).join('')}
-            </div>
         </div>
     `;
 };
 
-const head = () => {
+// Top Navigation & Masthead
+const navigationComponent = () => {
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     return `
-        <div id="bar"></div>
-        <div class="top">
-            <div class="w">
-                <span>${new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · Portal Berita Unik dan Menggelitik</span>
-                <div class="top-right">
-                    <button class="theme-toggle" id="thm" title="Ubah Tema">${isDark ? '☀ Terang' : '🌙 Gelap'}</button>
-                    <span class="soc">${soc()}</span>
-                    <span>${user ? `Halo, <b>${user.n}</b> · <a href="#" id="out">Keluar</a>` : '<a href="masuk.html">Masuk / Daftar</a>'}</span>
+        <!-- Mobile Sidebar Drawer -->
+        <div class="mobile-drawer-backdrop" id="drawerBackdrop"></div>
+        <aside class="mobile-drawer" id="mobileDrawer">
+            <div class="flex items-center justify-between pb-4 border-b border-gray-200 dark:border-zinc-800">
+                <a href="index.html" class="flex items-center">
+                    <img src="assets/logo.svg" alt="CuplikCom" class="h-8">
+                </a>
+                <button id="closeDrawer" class="text-2xl text-gray-500 hover:text-black dark:hover:text-white">&times;</button>
+            </div>
+            <div class="flex flex-col gap-2">
+                <a href="index.html" class="font-bold py-2 px-3 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 ${P === 'home' ? 'text-[#008a24]' : ''}">Beranda</a>
+                ${KANALS.map(k => `
+                    <a href="kanal.html?c=${encodeURIComponent(k)}" class="font-semibold py-2 px-3 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 ${Q.get('c') === k ? 'text-[#008a24]' : ''}">${k}</a>
+                `).join('')}
+            </div>
+            <div class="pt-4 border-t border-gray-200 dark:border-zinc-800 flex flex-col gap-3">
+                <a href="masuk.html" class="bg-[#008a24] hover:bg-[#006f1c] text-white py-2.5 px-4 rounded text-center font-bold flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+                    Masuk
+                </a>
+                <a href="info.html?p=iklan" class="border border-[#008a24] text-[#008a24] hover:bg-[#008a24] hover:text-white py-2 px-4 rounded text-center font-bold transition-colors">
+                    Langganan
+                </a>
+            </div>
+        </aside>
+
+        <!-- Navigation Bar -->
+        <nav class="site-container py-4">
+            <!-- Row 1: Logo & Right Tools -->
+            <div class="flex items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <button id="openDrawer" class="lg:hidden p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-200" aria-label="Buka Menu">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    </button>
+                    <a href="index.html" class="block">
+                        <img src="assets/logo.svg" alt="CuplikCom" class="h-10 sm:h-12">
+                    </a>
+                </div>
+
+                <div class="flex items-center justify-between gap-3 sm:gap-5">
+                    <!-- Search Input with Popup -->
+                    <div class="search-input-wrap hidden md:block">
+                        <svg class="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input type="text" id="mainSearchInput" class="search-input w-48 lg:w-64" placeholder="Cari berita terkini…">
+                        <div class="search-dropdown hidden" id="searchDropdown"></div>
+                    </div>
+
+                    <!-- Localization Bahasa -->
+                    <div class="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-gray-600 dark:text-gray-300">
+                        <span class="text-base">🇮🇩</span>
+                        <select id="langSelect" class="bg-transparent border-0 font-bold outline-none cursor-pointer">
+                            <option value="ID" class="text-black">Indonesia</option>
+                            <option value="EN" class="text-black">English</option>
+                        </select>
+                    </div>
+
+                    <!-- Theme Mode Toggle -->
+                    <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-600 dark:text-gray-300 text-sm font-medium flex items-center gap-1" title="Ubah Mode">
+                        ${isDark ? '☀' : '🌙'}
+                    </button>
+
+                    <!-- Button Masuk -->
+                    <a href="masuk.html" class="bg-[#008a24] hover:bg-[#006f1c] text-white text-xs sm:text-sm font-bold py-2 px-3.5 sm:px-4 rounded flex items-center gap-1.5 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+                        <span>Masuk</span>
+                    </a>
                 </div>
             </div>
-        </div>
-        <header class="mast">
-            <div class="w">
-                <a href="index.html" class="logo">
-                    <img src="assets/logo.svg" alt="CuplikCom - Beritanya Unik dan Menggelitik">
-                </a>
-                <button class="burger" id="bg" aria-label="Menu Utama">☰ Menu</button>
-                <form class="sf" action="cari.html" method="get">
-                    <input name="q" placeholder="Cari berita atau isu daerah…" value="${Q.get('q') || ''}" required>
-                    <button type="submit">Cari</button>
-                </form>
-            </div>
-        </header>
-        <nav class="main">
-            <div class="w">
-                <a href="index.html" class="${P === 'home' ? 'on' : ''}">Beranda</a>
-                ${KANALS.map(k => `<a href="kanal.html?c=${encodeURIComponent(k)}" class="${Q.get('c') === k ? 'on' : ''}">${k}</a>`).join('')}
-                <a href="video.html" class="${P === 'video' ? 'on' : ''}">Video</a>
-                <a href="polling.html" class="${P === 'polling' ? 'on' : ''}">Polling</a>
-                <a href="kanal.html?c=Index" class="${Q.get('c') === 'Index' ? 'on' : ''}">Index</a>
+
+            <!-- Horizontal Line -->
+            <hr class="border-t border-gray-200 dark:border-zinc-800 my-3.5">
+
+            <!-- Row 2: Navigation List -->
+            <div>
+                <div class="hidden lg:flex items-center justify-between gap-6 text-sm font-bold overflow-x-auto py-1">
+                    <a href="index.html" class="hover:text-[#008a24] whitespace-nowrap ${P === 'home' ? 'text-[#008a24] border-b-2 border-[#008a24] pb-1' : ''}">Beranda</a>
+                    ${KANALS.map(k => `
+                        <a href="kanal.html?c=${encodeURIComponent(k)}" class="hover:text-[#008a24] whitespace-nowrap ${Q.get('c') === k ? 'text-[#008a24] border-b-2 border-[#008a24] pb-1' : ''}">${k}</a>
+                    `).join('')}
+                </div>
             </div>
         </nav>
-        <div class="tick">
-            <b>TERKINI</b>
-            <div class="tick-marquee">
-                <div>
-                    ${A.slice(0, 12).map(a => `<span>▪ <a href="artikel.html?id=${a.id}">${a.t}</a></span>`).join('')}
-                </div>
-            </div>
-        </div>
-        <div class="w">${ad('728 × 90 PIXELS (LEADERBOARD)')}</div>
     `;
 };
 
-const foot = () => `
-    <footer class="foot">
-        <div class="w">
-            <div>
-                <div class="logo">cuplik<span style="color:var(--g)">com</span></div>
-                <p><strong>Unik dan Menggelitik</strong> — Portal berita siber independen menyajikan informasi mendalam, aktual, dan berimbang seputar Pantura, nasional, dan global.</p>
-                <div class="soc">${soc()}</div>
+// Footer Component
+// Spesifikasi: hitam sedikit campuran hijau, 3 kolom 2 row
+// Row 1: Col 1 logo, Col 2 navigasi, Col 3 Button Langganan
+// Row 2: 1 kolom (Privacy policy, hak cipta)
+const footerComponent = () => `
+    <footer class="site-footer mt-16 pt-12 pb-8">
+        <div class="site-container">
+            <!-- Row 1: 3 Grid Columns -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 pb-10 border-b border-white/10">
+                <!-- Col 1: Logo Cuplik -->
+                <div>
+                    <a href="index.html" class="inline-block mb-3">
+                        <img src="assets/logo.svg" alt="CuplikCom" class="h-10">
+                    </a>
+                    <p class="text-sm text-gray-400 leading-relaxed">
+                        <strong>CuplikCom</strong> adalah portal yang menyediakan sumber-sumber berita unik, tajam, dan menggelitik di kawasan Pantura dan Nasional.
+                    </p>
+                </div>
+
+                <!-- Col 2: Navigation Menus -->
+                <div>
+                    <h4 class="font-bold text-white mb-3 uppercase text-xs tracking-wider">Kategori Berita</h4>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        ${KANALS.map(k => `
+                            <a href="kanal.html?c=${encodeURIComponent(k)}" class="text-gray-400 hover:text-white transition-colors">${k}</a>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- Col 3: Additional (Button Langganan) -->
+                <div class="flex flex-col items-start gap-3">
+                    <h4 class="font-bold text-white uppercase text-xs tracking-wider">Layanan Premium</h4>
+                    <p class="text-sm text-gray-400">Dapatkan buletin harian dan akses liputan investigasi eksklusif.</p>
+                    <a href="info.html?p=iklan" class="bg-[#008a24] hover:bg-[#006f1c] text-white font-bold py-2.5 px-6 rounded text-sm transition-colors">
+                        Langganan Sekarang
+                    </a>
+                </div>
             </div>
-            <div>
-                <h4 style="color:#fff;margin-bottom:12px">Kanal Utama</h4>
-                ${KANALS.slice(0, 6).map(kl).join('')}
-            </div>
-            <div>
-                <h4 style="color:#fff;margin-bottom:12px">Jelajah</h4>
-                ${KANALS.slice(6).map(kl).join('')}
-                <a href="video.html">Galeri Video</a>
-                <a href="polling.html">Polling Pembaca</a>
-            </div>
-            <div>
-                <h4 style="color:#fff;margin-bottom:12px">Perusahaan</h4>
-                <a href="info.html?p=redaksi">Susunan Redaksi</a>
-                <a href="info.html?p=pedoman">Pedoman Media Siber</a>
-                <a href="info.html?p=disclaimer">Pasal Sanggahan (Disclaimer)</a>
-                <a href="info.html?p=iklan">Info Pemasangan Iklan</a>
-            </div>
-        </div>
-        <div class="foot-bottom">
-            <div class="w">
-                PT. Cuplik Media Center (CMC) · Anggota Serikat Media Siber Indonesia (SMSI) · Hak Cipta Dilindungi Undang-Undang
+
+            <!-- Row 2: 1 Full Column -->
+            <div class="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-400">
+                <div class="flex flex-wrap gap-4">
+                    <a href="info.html?p=redaksi" class="hover:text-white">Redaksi</a>
+                    <a href="info.html?p=pedoman" class="hover:text-white">Pedoman Media Siber</a>
+                    <a href="info.html?p=disclaimer" class="hover:text-white">Privacy Policy & Disclaimer</a>
+                    <a href="info.html?p=iklan" class="hover:text-white">Info Iklan</a>
+                </div>
+                <div>
+                    PT. Cuplik Media Center © 2009–2026. Hak Cipta Dilindungi Undang-Undang.
+                </div>
             </div>
         </div>
     </footer>
 `;
 
-const pop = () => `
-    <div class="box">
-        <h2 class="sec">Terpopuler <span class="sec-sub">Paling Banyak Dibaca</span></h2>
-        <ol class="pop">
-            ${[...A].sort((a, b) => b.v - a.v).slice(0, 8).map(a => `
-                <li><a href="artikel.html?id=${a.id}">${a.t}</a></li>
-            `).join('')}
-        </ol>
-    </div>
-`;
-
-const pollIn = () => {
-    const v = ls('pv');
-    const b = ls('pb') || [34, 48, 26, 19];
-    const total = b.reduce((x, y) => x + y, 0);
-    return `
-        <p><strong>${POLL.q}</strong></p>
-        ${POLL.o.map((o, i) => {
-            const pct = Math.round((b[i] / total) * 100);
-            return `
-                <button class="opt" data-v="${i}" ${v != null ? 'disabled' : ''}>
-                    ${v != null ? `<i style="width:${pct}%"></i>` : ''}
-                    <span>${o} <b>${v != null ? pct + '%' : ''}</b></span>
-                </button>
-            `;
-        }).join('')}
-        ${v != null ? `<small>✓ Suara Anda telah tercatat (${total} total partisipan)</small>` : '<small>Klik salah satu opsi untuk memberikan suara</small>'}
-    `;
-};
-
-const vt = v => `
-    <div class="vid" data-yt="${v.yt || ''}">
-        <div class="th" style="--t:#1b2b22">
-            ${v.dur ? `<span class="th-loc">${v.dur}</span>` : ''}
-            <button class="play" aria-label="Putar video">▶</button>
-        </div>
-        <h3>${v.t}</h3>
-        <span class="vid-meta">${v.views ? v.views.toLocaleString('id-ID') + ' views · ' : ''}${tgl(v.date)}</span>
-    </div>
-`;
-
-const tags = () => TAGS.map(t => `<a class="chip" href="cari.html?q=${encodeURIComponent(t)}">#${t}</a>`).join('');
-
-const curhatWidget = () => `
-    <div class="box">
-        <h2 class="sec">Curhat Rakyat <span class="sec-sub">Aspirasi Warga</span></h2>
-        ${CURHAT.slice(0, 3).map(c => `
-            <div class="curhat-item">
-                <h4>${c.judul}</h4>
-                <p>“${c.isi}”</p>
-                <small>${c.nama} · ${c.lokasi}</small>
-            </div>
-        `).join('')}
-    </div>
-`;
-
-function pager(list, container, btn, count, renderer) {
-    let cursor = 0;
-    const loadNext = () => {
-        const slice = list.slice(cursor, cursor + count);
-        container.insertAdjacentHTML('beforeend', slice.map(renderer).join(''));
-        cursor += count;
-        if (btn) btn.hidden = cursor >= list.length;
-    };
-    if (btn) btn.onclick = loadNext;
-    loadNext();
-}
-
-// Router Pages
+// Render Router Pages
 const pages = {
-    home: () => `
-        <div class="w">
-            <div class="hero">
-                ${slider()}
-                <div class="side">
-                    ${A.slice(5, 8).map(row).join('')}
-                </div>
-            </div>
-            <div class="layout">
-                <section>
-                    <h2 class="sec">Berita Terbaru <span class="sec-sub">Kabar Terkini Pantura & Nasional</span></h2>
-                    <div class="list" id="ls"></div>
-                    <p style="text-align:center;margin-top:32px">
-                        <button class="btn" id="more">Muat Lebih Banyak Berita</button>
-                    </p>
-                </section>
-                <aside>
-                    ${pop()}
-                    ${ad('300 × 250 PIXELS (SIDEBAR)', '6/5')}
-                    <div class="box">
-                        <h2 class="sec">Polling Cuplik</h2>
-                        <div class="poll">${pollIn()}</div>
-                    </div>
-                    <div class="box">
-                        <h2 class="sec">Video Cuplik</h2>
-                        ${V.slice(0, 2).map(vt).join('')}
-                    </div>
-                    ${curhatWidget()}
-                    <div class="box">
-                        <h2 class="sec">Tag Populer</h2>
-                        ${tags()}
-                    </div>
-                </aside>
-            </div>
-        </div>
-    `,
+    // 1. Home Page (Index)
+    home: () => {
+        const topPilihan = A.slice(0, 3);
 
-    kanal: () => {
-        const c = Q.get('c') || 'Index';
-        const isAll = c === 'Index';
-        const filtered = isAll ? A : A.filter(a => a.c.toLowerCase() === c.toLowerCase());
         return `
-            <div class="w">
-                <div class="head">
-                    <div>
-                        <h1>Kanal: ${c}</h1>
-                        <p style="color:var(--text-muted);margin:4px 0 0">${filtered.length} artikel terindeks pada kanal ini</p>
+            <div class="site-container my-6 space-y-10">
+                <!-- Hero Container / Header: Banner -->
+                <div>
+                    ${bannerComponent()}
+
+                    <!-- Box Container Berita Pilihan (Background color green memenuhi lebar layar, teks putih, badge kategori putih hijau) -->
+                    <div class="box-green-pilihan">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-2xl font-black tracking-tight text-white">Berita Pilihan</h2>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            ${topPilihan.map(a => cardImage1(a, true)).join('')}
+                        </div>
                     </div>
-                    <select id="srt">
-                        <option value="d">Urutkan: Terbaru</option>
-                        <option value="v">Urutkan: Terpopuler</option>
-                    </select>
                 </div>
-                <div class="grid3" id="gr"></div>
-                <p id="emp" ${filtered.length > 0 ? 'hidden' : ''} style="text-align:center;padding:40px;color:var(--text-muted)">
-                    Belum ada artikel pada kanal ini.
-                </p>
-                <p style="text-align:center;margin:36px 0">
-                    <button class="btn" id="more" ${filtered.length <= 6 ? 'hidden' : ''}>Muat Lebih Banyak</button>
-                </p>
+
+                <!-- Main Content: 2 Grid Columns (Left & Right) -->
+                <div>
+                    <div class="main-grid-layout grid grid-cols-[1fr_320px] gap-10">
+                        <!-- Grid 1 (Left Column): Category Summaries -->
+                        <div class="space-y-10">
+                            ${KANALS.map((cat, idx) => {
+                                const catArticles = A.filter(a => a.c.toLowerCase() === cat.toLowerCase());
+                                const headline = catArticles[0] || A[idx % A.length];
+                                const subItems = catArticles.slice(1, 4).length === 3 
+                                    ? catArticles.slice(1, 4) 
+                                    : A.filter(a => a.id !== headline.id).slice(0, 3);
+
+                                let intermediateBox = '';
+                                // Di sela-sela antara Hukum (idx 2) dan Ekonomi (idx 3): Newsletter with image
+                                if (cat === 'Hukum') {
+                                    intermediateBox = `
+                                        <div class="my-8 rounded-lg overflow-hidden border border-gray-200 dark:border-zinc-800">
+                                            <a href="info.html?p=iklan" class="block">
+                                                <img src="./ChatGPT Image Oct 1, 2026, 12_21_56 PM.png" alt="Newsletter Subscription" class="w-full h-auto block" onerror="this.src='assets/newsletter.png'">
+                                            </a>
+                                        </div>
+                                    `;
+                                }
+
+                                // Di sela-sela Ekonomi (idx 3) dan Ragam (idx 4): Space Iklan
+                                if (cat === 'Ekonomi') {
+                                    intermediateBox = `
+                                        <div class="my-8">
+                                            <div class="space-iklan">
+                                                SPACE IKLAN LEADERBOARD 728 × 90 PIXELS
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+
+                                return `
+                                    <div>
+                                        <!-- Category Header with Title and Selengkapnya -->
+                                        <div class="flex items-center justify-between pb-2 mb-4 border-b-2 border-gray-200 dark:border-zinc-800">
+                                            <h2 class="text-xl font-bold text-[#111111] dark:text-white">${cat}</h2>
+                                            <a href="kanal.html?c=${encodeURIComponent(cat)}" class="text-xs font-bold text-[#008a24] hover:text-[#006f1c] flex items-center gap-1">
+                                                <span>Selengkapnya</span>
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                            </a>
+                                        </div>
+
+                                        <!-- 2 Rows of Content: Row 1 is Card Image 1, Row 2 is 3 items of Card Image 2 -->
+                                        <div class="space-y-4">
+                                            <div>
+                                                ${cardImage1(headline)}
+                                            </div>
+                                            <div class="space-y-2 pt-2 border-t border-gray-100 dark:border-zinc-800">
+                                                ${subItems.map(item => cardImage2(item)).join('')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    ${intermediateBox}
+                                `;
+                            }).join('')}
+                        </div>
+
+                        <!-- Grid 2 (Right Column): Sidebar -->
+                        <div class="space-y-8">
+                            <!-- 1. Tagar yang sedang trending -->
+                            <div>
+                                <h3 class="font-bold text-lg mb-3 pb-2 border-b border-gray-200 dark:border-zinc-800 text-[#111111] dark:text-white">
+                                    Tagar Trending
+                                </h3>
+                                <div class="space-y-2.5">
+                                    ${TRENDING_TAGS.map(t => `
+                                        <a href="cari.html?q=${encodeURIComponent(t.tag)}" class="flex items-center justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-zinc-900 group">
+                                            <span class="font-bold text-sm text-[#111111] dark:text-gray-200 group-hover:text-[#008a24]">#${t.tag}</span>
+                                            <span class="text-xs text-gray-400">${t.count}</span>
+                                        </a>
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <!-- 2. Keluh Kesah Rakyat (Avatar Anonim + Pesan) -->
+                            <div>
+                                <h3 class="font-bold text-lg mb-3 pb-2 border-b border-gray-200 dark:border-zinc-800 text-[#111111] dark:text-white">
+                                    Keluh Kesah Rakyat
+                                </h3>
+                                <div class="space-y-3">
+                                    ${KELUH_KESAH.map(k => `
+                                        <div class="p-3 rounded-lg border border-gray-200 dark:border-zinc-800 flex items-start gap-3 bg-white dark:bg-zinc-900">
+                                            <div class="avatar-anon">?</div>
+                                            <div class="text-xs space-y-1">
+                                                <div class="flex items-center justify-between">
+                                                    <strong class="text-gray-900 dark:text-white">${k.nama}</strong>
+                                                    <span class="text-gray-400">${k.waktu}</span>
+                                                </div>
+                                                <p class="text-gray-600 dark:text-gray-300 italic">“${k.pesan}”</p>
+                                                <div class="text-gray-400 font-medium">${k.lokasi}</div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <!-- 3. Space Iklan Sidebar -->
+                            <div>
+                                <div class="space-iklan aspect-[6/5] flex items-center justify-center">
+                                    SPACE IKLAN 300 × 250 PIXELS
+                                </div>
+                            </div>
+
+                            <!-- 4. Tags -->
+                            <div>
+                                <h3 class="font-bold text-lg mb-3 pb-2 border-b border-gray-200 dark:border-zinc-800 text-[#111111] dark:text-white">
+                                    Jelajah Tagar
+                                </h3>
+                                <div class="flex flex-wrap gap-2">
+                                    ${TAGS.map(t => `
+                                        <a href="cari.html?q=${encodeURIComponent(t)}" class="text-xs font-semibold px-2.5 py-1.5 rounded border border-gray-200 dark:border-zinc-800 hover:border-[#008a24] hover:text-[#008a24] bg-white dark:bg-zinc-900 transition-colors">
+                                            #${t}
+                                        </a>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
     },
 
+    // 2. News Detail (artikel.html)
+    // Spesifikasi: 2 grid col
+    // Col 1: Judul, di bawahnya Nama Author & tanggal publish Indonesia format (space between),
+    // di bawahnya gambar & teks berita detail, di bawahnya icon box share (WA, IG, Twitter, Copy URL, TikTok),
+    // di bawahnya lagi Suggestion berita (3 item dari kiri ke kanan menggunakan Card Image 1).
+    // Col 2: Tag, Trending, Space Iklan.
     artikel: () => {
         const id = parseInt(Q.get('id'), 10);
         const a = A.find(x => x.id === id) || A[0];
-        if (!a) return pages.nf();
-
-        const related = A.filter(x => x.c === a.c && x.id !== a.id)
-            .concat(A.filter(x => x.c !== a.c && x.id !== a.id))
-            .slice(0, 4);
+        const suggestions = A.filter(x => x.id !== a.id).slice(0, 3);
+        const shareUrl = encodeURIComponent(window.location.href);
+        const shareText = encodeURIComponent(`${a.t} - CuplikCom`);
 
         document.title = `${a.t} — CuplikCom`;
 
-        const shareUrl = encodeURIComponent(window.location.href);
-        const shareText = encodeURIComponent(`${a.t} via CuplikCom:`);
-
         return `
-            <div class="w">
-                <article class="art">
-                    <div class="art-crumbs">
-                        <a href="index.html">Beranda</a> &rsaquo; 
-                        <a href="kanal.html?c=${encodeURIComponent(a.c)}">${a.c}</a> &rsaquo; 
-                        <span>Detail Artikel</span>
-                    </div>
+            <div class="site-container my-8">
+                <div class="main-grid-layout grid grid-cols-[1fr_320px] gap-10">
+                    <!-- Col 1: News Detail -->
+                    <article class="space-y-6">
+                        <!-- Judul -->
+                        <h1 class="text-2xl sm:text-4xl font-black text-[#111111] dark:text-white leading-tight">
+                            ${a.t}
+                        </h1>
 
-                    <a class="tag" href="kanal.html?c=${encodeURIComponent(a.c)}">${a.c}</a>
-                    <h1>${a.t}</h1>
-
-                    <div class="art-meta-box">
-                        <div class="art-author">
-                            <div class="author-avatar">${(a.author || 'C')[0]}</div>
-                            <div>
-                                <div><strong>${a.author || 'Pewarta CMC'}</strong> ${a.loc ? `· <em>${a.loc}</em>` : ''}</div>
-                                <time style="margin:0">${tgl(a.d)}</time>
+                        <!-- Author & Tanggal Publish (format Indonesia, space between) -->
+                        <div class="flex items-center justify-between py-3 border-y border-gray-200 dark:border-zinc-800 text-sm">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-[#008a24]">${a.author || 'Pewarta CMC'}</span>
+                                ${a.loc ? `<span class="text-gray-400">• ${a.loc}</span>` : ''}
+                            </div>
+                            <div class="text-gray-500 dark:text-gray-400 font-medium">
+                                ${tglIndo(a.d)}
                             </div>
                         </div>
-                        <div class="art-stats">
-                            <span>👁 ${a.v ? a.v.toLocaleString('id-ID') : 0} dibaca</span>
-                            <span>⏱ ~${a.readTime || 2} mnt baca</span>
+
+                        <!-- Gambar Berita -->
+                        ${thImg(a, 'aspect-[16/9]')}
+
+                        <!-- Teks Berita Detail -->
+                        <div class="space-y-4 text-base sm:text-lg leading-relaxed text-[#111111] dark:text-[#f3f4f6]">
+                            ${a.body ? a.body.map(p => `<p>${p}</p>`).join('') : `<p>${a.lead || ''}</p>`}
+                        </div>
+
+                        <!-- Icon Box Share (Company brand colors: WA, IG, Twitter, Copy URL, TikTok) -->
+                        <div class="pt-6 border-t border-gray-200 dark:border-zinc-800">
+                            <h4 class="font-bold text-sm mb-3 uppercase tracking-wider text-gray-500">Bagikan Berita:</h4>
+                            <div class="flex flex-wrap items-center gap-2.5">
+                                <a href="https://api.whatsapp.com/send?text=${shareText}%20${shareUrl}" target="_blank" rel="noopener" class="share-wa px-4 py-2 rounded text-xs font-bold flex items-center gap-1.5">
+                                    <span>WhatsApp</span>
+                                </a>
+                                <a href="https://instagram.com/cuplikcom" target="_blank" rel="noopener" class="share-ig px-4 py-2 rounded text-xs font-bold flex items-center gap-1.5">
+                                    <span>Instagram</span>
+                                </a>
+                                <a href="https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}" target="_blank" rel="noopener" class="share-tw px-4 py-2 rounded text-xs font-bold flex items-center gap-1.5">
+                                    <span>X (Twitter)</span>
+                                </a>
+                                <a href="https://tiktok.com/@cuplikcom" target="_blank" rel="noopener" class="share-tt px-4 py-2 rounded text-xs font-bold flex items-center gap-1.5">
+                                    <span>TikTok</span>
+                                </a>
+                                <button id="copyShareBtn" class="share-cp px-4 py-2 rounded text-xs font-bold flex items-center gap-1.5">
+                                    <span>Salin URL</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Suggestion Berita (3 item dari kiri ke kanan menggunakan Card Image 1) -->
+                        <div class="pt-10 border-t border-gray-200 dark:border-zinc-800">
+                            <h3 class="text-xl font-bold mb-5 text-[#111111] dark:text-white">Berita Pilihan Lainnya</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                                ${suggestions.map(s => cardImage1(s)).join('')}
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- Col 2: Sidebar (Tag, Trending, Space Iklan) -->
+                    <div class="space-y-8">
+                        <!-- Tag -->
+                        <div>
+                            <h3 class="font-bold text-lg mb-3 pb-2 border-b border-gray-200 dark:border-zinc-800 text-[#111111] dark:text-white">
+                                Tag Terkait
+                            </h3>
+                            <div class="flex flex-wrap gap-2">
+                                ${(a.tags || TAGS.slice(0, 5)).map(t => `
+                                    <a href="cari.html?q=${encodeURIComponent(t)}" class="text-xs font-semibold px-2.5 py-1.5 rounded border border-gray-200 dark:border-zinc-800 hover:border-[#008a24] hover:text-[#008a24] bg-white dark:bg-zinc-900 transition-colors">
+                                        #${t}
+                                    </a>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Trending -->
+                        <div>
+                            <h3 class="font-bold text-lg mb-3 pb-2 border-b border-gray-200 dark:border-zinc-800 text-[#111111] dark:text-white">
+                                Berita Trending
+                            </h3>
+                            <div class="space-y-3">
+                                ${A.slice(0, 4).map(item => cardImage2(item)).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Space Iklan -->
+                        <div>
+                            <div class="space-iklan aspect-[6/5] flex items-center justify-center">
+                                SPACE IKLAN 300 × 250 PIXELS
+                            </div>
                         </div>
                     </div>
-
-                    <div class="tools">
-                        <button id="fm" title="Perkecil huruf">A−</button>
-                        <button id="fr" title="Ukuran standar">A</button>
-                        <button id="fp" title="Perbesar huruf">A+</button>
-                        <a class="wa" target="_blank" href="https://api.whatsapp.com/send?text=${shareText}%20${shareUrl}">Share WhatsApp</a>
-                        <a target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=${shareUrl}">Facebook</a>
-                        <a target="_blank" href="https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}">X</a>
-                        <button id="cp">Salin Tautan</button>
-                    </div>
-
-                    ${th(a)}
-
-                    <div class="body" id="bd">
-                        ${a.body ? a.body.map(p => `<p>${p}</p>`).join('') : `<p>${a.lead || ''}</p>`}
-                        ${ad('640 × 160 PIXELS (IN-ARTICLE SPONSOR)', '16/4')}
-                    </div>
-
-                    <div class="art-tags">
-                        <b>Topik Terkait:</b>
-                        ${(a.tags || [a.c, 'Pantura', 'Berita']).map(t => `<a class="chip" href="cari.html?q=${encodeURIComponent(t)}">#${t}</a>`).join('')}
-                    </div>
-
-                    <div class="comm-section">
-                        <h2 class="sec">Suara Pembaca / Curhat Terkait</h2>
-                        <form class="comm-form" id="cf">
-                            <input class="f" name="cn" placeholder="Nama Anda" required>
-                            <textarea name="ct" placeholder="Tuliskan tanggapan, opini, atau keluhan Anda terkait berita ini..." required></textarea>
-                            <button class="btn" type="submit">Kirim Tanggapan</button>
-                        </form>
-                        <div class="comm-list" id="cl"></div>
-                    </div>
-
-                    <h2 class="sec" style="margin-top:44px">Baca Berita Terkait Lainnya</h2>
-                    <div class="list">
-                        ${related.map(row).join('')}
-                    </div>
-                </article>
+                </div>
             </div>
         `;
     },
 
-    cari: () => {
-        const q = (Q.get('q') || '').trim();
+    // 3. Kanal Page
+    kanal: () => {
+        const cat = Q.get('c') || 'Politik';
+        const list = cat === 'Index' ? A : A.filter(a => a.c.toLowerCase() === cat.toLowerCase());
         return `
-            <div class="w">
-                <div class="head">
+            <div class="site-container my-8">
+                <div class="pb-4 mb-6 border-b-2 border-gray-200 dark:border-zinc-800 flex items-center justify-between">
                     <div>
-                        <h1>Pencarian Berita</h1>
-                        <p id="cnt" style="color:var(--text-muted);margin-top:4px"></p>
+                        <h1 class="text-3xl font-black text-[#111111] dark:text-white">Kanal: ${cat}</h1>
+                        <p class="text-sm text-gray-500 mt-1">${list.length} arsip berita terindeks</p>
                     </div>
                 </div>
-                <div class="grid3" id="gr"></div>
-                <p id="emp" hidden style="text-align:center;padding:50px;color:var(--text-muted)">
-                    Tidak ada berita yang cocok dengan kata kunci yang Anda masukkan.
-                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    ${list.map(a => cardImage1(a)).join('')}
+                </div>
+                ${list.length === 0 ? '<p class="text-center py-12 text-gray-400">Belum ada berita di kanal ini.</p>' : ''}
             </div>
         `;
     },
 
+    // 4. Cari Page
+    cari: () => {
+        const q = (Q.get('q') || '').trim().toLowerCase();
+        const matches = q ? A.filter(a => (a.t + ' ' + a.c + ' ' + (a.tags || []).join(' ')).toLowerCase().includes(q)) : [];
+        return `
+            <div class="site-container my-8">
+                <h1 class="text-2xl sm:text-3xl font-black mb-2 text-[#111111] dark:text-white">Hasil Pencarian</h1>
+                <p class="text-sm text-gray-500 mb-6">${q ? `${matches.length} berita ditemukan untuk "${q}"` : 'Ketik kata kunci untuk mencari berita.'}</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    ${matches.map(a => cardImage1(a)).join('')}
+                </div>
+            </div>
+        `;
+    },
+
+    // 5. Video Page
     video: () => `
-        <div class="w">
-            <div class="head">
-                <div>
-                    <h1>Galeri Video Cuplik</h1>
-                    <p style="color:var(--text-muted);margin-top:4px">Liputan visual eksklusif, hiburan rakyat, seni budaya, dan wawancara khusus.</p>
-                </div>
-            </div>
-            <div class="grid3">
-                ${V.map(vt).join('')}
+        <div class="site-container my-8">
+            <h1 class="text-3xl font-black mb-6 text-[#111111] dark:text-white">Galeri Video Cuplik</h1>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                ${V.map(v => `
+                    <div class="rounded-lg overflow-hidden border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 space-y-3">
+                        <div class="aspect-video bg-zinc-800 rounded flex items-center justify-center text-white font-bold text-2xl">
+                            ${v.yt ? `<iframe src="https://www.youtube-nocookie.com/embed/${v.yt}" class="w-full h-full rounded" allowfullscreen></iframe>` : '▶ Video'}
+                        </div>
+                        <h3 class="font-bold text-sm leading-snug line-clamp-2">${v.t}</h3>
+                        <div class="text-xs text-gray-400">${v.dur} • ${v.ago}</div>
+                    </div>
+                `).join('')}
             </div>
         </div>
     `,
 
+    // 6. Polling Page
     polling: () => `
-        <div class="w">
-            <div class="head">
-                <div>
-                    <h1>Polling & Aspirasi Publik</h1>
-                    <p style="color:var(--text-muted);margin-top:4px">Kanal survei opini pembaca CuplikCom terhadap isu krusial daerah dan nasional.</p>
+        <div class="site-container my-8 max-w-xl">
+            <h1 class="text-2xl font-black mb-4 text-[#111111] dark:text-white">Polling Pembaca</h1>
+            <div class="p-6 rounded-lg border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-4">
+                <p class="font-bold text-base">${POLL.q}</p>
+                <div class="space-y-2.5">
+                    ${POLL.o.map((o, i) => `
+                        <button class="w-full p-3 text-left rounded border border-gray-200 dark:border-zinc-800 hover:border-[#008a24] font-medium text-sm transition-colors block">
+                            ${o}
+                        </button>
+                    `).join('')}
                 </div>
-            </div>
-            <div class="box" style="max-width:640px;margin:30px auto">
-                <div class="poll">${pollIn()}</div>
             </div>
         </div>
     `,
 
+    // 7. Masuk Page
     masuk: () => `
-        <div class="w">
-            <div class="box" style="max-width:440px;margin:40px auto;border-radius:4px">
-                <div class="tabs">
-                    <button class="btn on" data-t="0">Masuk</button>
-                    <button class="btn" data-t="1">Daftar Akun</button>
-                </div>
-                <form id="fm1">
-                    <input class="f" name="n" placeholder="Nama Lengkap" hidden>
-                    <input class="f" name="e" type="email" placeholder="Alamat Email" required>
-                    <input class="f" name="s" type="password" placeholder="Kata Sandi (min. 6 karakter)" minlength="6" required>
-                    <button class="btn" style="width:100%">Lanjutkan</button>
-                    <div class="msg" id="ms"></div>
+        <div class="site-container my-12 max-w-md">
+            <div class="p-6 rounded-lg border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-4">
+                <h1 class="text-2xl font-black text-center text-[#111111] dark:text-white">Masuk ke CuplikCom</h1>
+                <form class="space-y-3" onsubmit="event.preventDefault(); alert('Fitur autentikasi aktif.'); location.href='index.html';">
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase">Email</label>
+                        <input type="email" required class="w-full p-2.5 rounded border border-gray-200 dark:border-zinc-800 bg-transparent text-sm mt-1 outline-none focus:border-[#008a24]">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase">Kata Sandi</label>
+                        <input type="password" required minlength="6" class="w-full p-2.5 rounded border border-gray-200 dark:border-zinc-800 bg-transparent text-sm mt-1 outline-none focus:border-[#008a24]">
+                    </div>
+                    <button type="submit" class="w-full bg-[#008a24] hover:bg-[#006f1c] text-white font-bold py-2.5 rounded text-sm transition-colors mt-2">
+                        Masuk
+                    </button>
                 </form>
             </div>
         </div>
     `,
 
+    // 8. Info Pages (Redaksi, Pedoman, Disclaimer, Iklan)
     info: () => {
         const p = Q.get('p') || 'redaksi';
-        const infoObj = INFO[p] || INFO.redaksi;
+        const item = INFO[p] || INFO.redaksi;
         return `
-            <div class="w">
-                <div class="head">
-                    <div>
-                        <h1>${infoObj.title}</h1>
-                    </div>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap">
-                        <a class="btn ${p === 'redaksi' ? '' : 'btn-secondary'}" href="info.html?p=redaksi">Redaksi</a>
-                        <a class="btn ${p === 'pedoman' ? '' : 'btn-secondary'}" href="info.html?p=pedoman">Pedoman Siber</a>
-                        <a class="btn ${p === 'disclaimer' ? '' : 'btn-secondary'}" href="info.html?p=disclaimer">Disclaimer</a>
-                        <a class="btn ${p === 'iklan' ? '' : 'btn-secondary'}" href="info.html?p=iklan">Info Iklan</a>
-                    </div>
+            <div class="site-container my-8 max-w-3xl">
+                <div class="flex flex-wrap gap-2 mb-6">
+                    <a href="info.html?p=redaksi" class="px-3 py-1.5 rounded text-xs font-bold ${p === 'redaksi' ? 'bg-[#008a24] text-white' : 'border border-gray-200 dark:border-zinc-800'}">Redaksi</a>
+                    <a href="info.html?p=pedoman" class="px-3 py-1.5 rounded text-xs font-bold ${p === 'pedoman' ? 'bg-[#008a24] text-white' : 'border border-gray-200 dark:border-zinc-800'}">Pedoman Siber</a>
+                    <a href="info.html?p=disclaimer" class="px-3 py-1.5 rounded text-xs font-bold ${p === 'disclaimer' ? 'bg-[#008a24] text-white' : 'border border-gray-200 dark:border-zinc-800'}">Disclaimer</a>
+                    <a href="info.html?p=iklan" class="px-3 py-1.5 rounded text-xs font-bold ${p === 'iklan' ? 'bg-[#008a24] text-white' : 'border border-gray-200 dark:border-zinc-800'}">Info Iklan</a>
                 </div>
-                <article class="art" style="margin:20px auto">
-                    <div class="body">
-                        ${infoObj.content}
-                    </div>
-                </article>
+                <h1 class="text-3xl font-black mb-4 text-[#111111] dark:text-white">${item.title}</h1>
+                <div class="prose dark:prose-invert max-w-none text-sm leading-relaxed">
+                    ${item.content}
+                </div>
             </div>
         `;
     },
 
+    // 404
     nf: () => `
-        <div class="w">
-            <div class="art" style="text-align:center;padding:60px 0">
-                <h1 style="font-size:110px;color:var(--r);margin-bottom:10px">404</h1>
-                <h2>Halaman Tidak Ditemukan</h2>
-                <p class="body" style="font-size:17px;color:var(--text-muted)">Halaman yang Anda tuju mungkin telah dipindahkan atau tautan sudah tidak aktif.</p>
-                <p><a class="btn" href="index.html">Kembali ke Beranda CuplikCom</a></p>
-            </div>
+        <div class="site-container my-16 text-center space-y-4">
+            <h1 class="text-6xl font-black text-[#008a24]">404</h1>
+            <h2 class="text-2xl font-bold">Halaman Tidak Ditemukan</h2>
+            <p class="text-gray-500 text-sm">Halaman yang Anda cari tidak tersedia.</p>
+            <a href="index.html" class="inline-block bg-[#008a24] text-white font-bold py-2 px-4 rounded text-sm">Kembali ke Beranda</a>
         </div>
     `
 };
 
-// Render Main Layout
-$('#app').innerHTML = head() + '<main>' + (pages[P] || pages.nf)() + '</main>' + foot();
+// Render Main
+$('#app').innerHTML = navigationComponent() + '<main>' + (pages[P] || pages.nf)() + '</main>' + footerComponent();
 
-// Theme Toggle Action
-const thm = $('#thm');
-if (thm) {
-    thm.onclick = () => {
+// Banner Auto-Slide Logic (10 Detik Otomatis)
+const bannerTrack = $('.banner-track');
+const bannerDots = $$('.banner-dot');
+if (bannerTrack && bannerDots.length > 0) {
+    let currentSlide = 0;
+    const totalSlides = bannerDots.length;
+
+    const showSlide = (idx) => {
+        currentSlide = (idx + totalSlides) % totalSlides;
+        bannerTrack.style.transform = `translateX(-${currentSlide * 100}%)`;
+        bannerDots.forEach((d, i) => d.classList.toggle('active', i === currentSlide));
+    };
+
+    bannerDots.forEach(d => {
+        d.onclick = () => showSlide(+d.dataset.idx);
+    });
+
+    // Otomatis berganti setiap 10 detik (10000ms)
+    setInterval(() => {
+        showSlide(currentSlide + 1);
+    }, 10000);
+}
+
+// Search Pop-up Dropdown Engine
+const searchInput = $('#mainSearchInput');
+const searchDropdown = $('#searchDropdown');
+if (searchInput && searchDropdown) {
+    searchInput.oninput = () => {
+        const val = searchInput.value.trim().toLowerCase();
+        if (!val) {
+            searchDropdown.classList.add('hidden');
+            searchDropdown.innerHTML = '';
+            return;
+        }
+
+        const hits = A.filter(a => (a.t + ' ' + a.c + ' ' + (a.tags || []).join(' ')).toLowerCase().includes(val)).slice(0, 6);
+        if (hits.length === 0) {
+            searchDropdown.innerHTML = '<div class="p-3 text-xs text-gray-400">Tidak ada berita yang cocok.</div>';
+        } else {
+            searchDropdown.innerHTML = hits.map(h => `
+                <a href="artikel.html?id=${h.id}" class="flex items-center gap-2.5 p-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 group block">
+                    <span class="badge-cat text-[10px]">${h.c}</span>
+                    <span class="text-xs font-bold line-clamp-1 group-hover:text-[#008a24]">${h.t}</span>
+                </a>
+            `).join('');
+        }
+        searchDropdown.classList.remove('hidden');
+    };
+
+    document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
+            searchDropdown.classList.add('hidden');
+        }
+    });
+}
+
+// Mobile Drawer Interaction
+const openDrawerBtn = $('#openDrawer');
+const closeDrawerBtn = $('#closeDrawer');
+const mobileDrawer = $('#mobileDrawer');
+const drawerBackdrop = $('#drawerBackdrop');
+
+const toggleDrawer = (open) => {
+    if (mobileDrawer && drawerBackdrop) {
+        mobileDrawer.classList.toggle('open', open);
+        drawerBackdrop.classList.toggle('open', open);
+    }
+};
+
+if (openDrawerBtn) openDrawerBtn.onclick = () => toggleDrawer(true);
+if (closeDrawerBtn) closeDrawerBtn.onclick = () => toggleDrawer(false);
+if (drawerBackdrop) drawerBackdrop.onclick = () => toggleDrawer(false);
+
+// Theme Toggle Button
+const themeBtn = $('#themeToggle');
+if (themeBtn) {
+    themeBtn.onclick = () => {
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
         if (isDark) {
             document.documentElement.removeAttribute('data-theme');
+            document.documentElement.classList.remove('dark');
             ls('theme', 'light');
-            thm.textContent = '🌙 Gelap';
+            themeBtn.textContent = '🌙';
         } else {
             document.documentElement.setAttribute('data-theme', 'dark');
+            document.documentElement.classList.add('dark');
             ls('theme', 'dark');
-            thm.textContent = '☀ Terang';
+            themeBtn.textContent = '☀';
         }
     };
 }
 
-// Auth Actions
-const out = $('#out');
-if (out) {
-    out.onclick = e => {
-        e.preventDefault();
-        localStorage.removeItem('u');
-        location.reload();
-    };
-}
-
-// Global Event Listeners (Polling & Video)
-document.addEventListener('click', e => {
-    // Polling Click
-    const opt = e.target.closest('[data-v]');
-    if (opt && ls('pv') == null) {
-        const b = ls('pb') || [34, 48, 26, 19];
-        b[+opt.dataset.v]++;
-        ls('pb', b);
-        ls('pv', +opt.dataset.v);
-        $$('.poll').forEach(p => p.innerHTML = pollIn());
-    }
-
-    // Video Play Click
-    const pl = e.target.closest('.play');
-    if (pl) {
-        const vid = pl.closest('.vid');
-        const ytId = vid.dataset.yt;
-        if (ytId) {
-            vid.firstElementChild.outerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-        } else {
-            alert('Video ini bersumber dari arsip live streaming CuplikCom.');
-        }
-    }
-});
-
-// Page Specific Initializations
-if (P === 'home') {
-    pager(A.slice(8), $('#ls'), $('#more'), 6, row);
-
-    // Hero Slider logic
-    const tr = $('.track');
-    if (tr) {
-        const ds = $$('.dots i');
-        const n = ds.length;
-        let idx = 0;
-        let isHover = false;
-
-        const goTo = k => {
-            idx = (k + n) % n;
-            tr.style.transform = `translateX(-${idx * 100}%)`;
-            ds.forEach((d, j) => d.classList.toggle('on', j === idx));
-        };
-
-        $$('[data-s]').forEach(b => b.onclick = () => goTo(idx + +b.dataset.s));
-        ds.forEach(d => d.onclick = () => goTo(+d.dataset.d));
-
-        const sl = $('.sl');
-        if (sl) {
-            sl.onmouseenter = () => isHover = true;
-            sl.onmouseleave = () => isHover = false;
-        }
-
-        goTo(0);
-        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-            setInterval(() => {
-                if (!isHover) goTo(idx + 1);
-            }, 6000);
-        }
-    }
-}
-
-if (P === 'kanal') {
-    const c = Q.get('c') || 'Index';
-    const isAll = c === 'Index';
-    const list = isAll ? A : A.filter(a => a.c.toLowerCase() === c.toLowerCase());
-
-    const runKanal = () => {
-        const sortVal = $('#srt').value;
-        const sorted = [...list].sort((a, b) => sortVal === 'v' ? b.v - a.v : b.d.localeCompare(a.d));
-        $('#gr').innerHTML = '';
-        $('#emp').hidden = sorted.length > 0;
-        pager(sorted, $('#gr'), $('#more'), 6, card);
-    };
-
-    $('#srt').onchange = runKanal;
-    runKanal();
-}
-
-if (P === 'cari') {
-    const runSearch = () => {
-        const query = (Q.get('q') || $('.sf input').value || '').trim().toLowerCase();
-        const matches = query
-            ? A.filter(a => (a.t + ' ' + a.c + ' ' + (a.tags || []).join(' ') + ' ' + (a.body || []).join(' ')).toLowerCase().includes(query))
-            : [];
-
-        $('#cnt').textContent = query ? `${matches.length} berita ditemukan untuk kata kunci “${query}”` : 'Silakan masukkan kata kunci pencarian.';
-        $('#gr').innerHTML = matches.map(card).join('');
-        $('#emp').hidden = matches.length > 0;
-    };
-
-    $('.sf input').oninput = runSearch;
-    runSearch();
-}
-
-if (P === 'artikel') {
-    const bd = $('#bd');
-    if (bd) {
-        let currentSize = ls('fz') || 19;
-        const setSize = delta => {
-            currentSize = delta ? Math.min(26, Math.max(15, currentSize + delta)) : 19;
-            bd.style.fontSize = currentSize + 'px';
-            ls('fz', currentSize);
-        };
-        bd.style.fontSize = currentSize + 'px';
-
-        $('#fm').onclick = () => setSize(-2);
-        $('#fr').onclick = () => setSize(0);
-        $('#fp').onclick = () => setSize(2);
-
-        $('#cp').onclick = e => {
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(location.href);
-                e.target.textContent = 'Tersalin ✓';
-                setTimeout(() => e.target.textContent = 'Salin Tautan', 2500);
-            }
-        };
-
-        window.addEventListener('scroll', () => {
-            const bar = $('#bar');
-            if (bar) {
-                const totalH = document.body.scrollHeight - window.innerHeight;
-                bar.style.width = totalH > 0 ? (window.scrollY / totalH) * 100 + '%' : '0%';
-            }
-        });
-
-        // Article Local Comments
-        const artId = Q.get('id') || '1';
-        const comKey = `comm_${artId}`;
-        const renderComms = () => {
-            const list = ls(comKey) || [
-                { n: 'H. Sudirman', t: 'Informasi yang sangat berimbang dan aktual. Terima kasih CuplikCom!', d: '2026-10-02' }
-            ];
-            const cl = $('#cl');
-            if (cl) {
-                cl.innerHTML = list.map(c => `
-                    <div class="comm-bubble">
-                        <b>${c.n}</b> <time>${c.d}</time>
-                        <p style="margin:4px 0 0">${c.t}</p>
-                    </div>
-                `).join('');
-            }
-        };
-
-        renderComms();
-
-        const cf = $('#cf');
-        if (cf) {
-            cf.onsubmit = e => {
-                e.preventDefault();
-                const list = ls(comKey) || [];
-                list.unshift({
-                    n: cf.cn.value.trim(),
-                    t: cf.ct.value.trim(),
-                    d: new Date().toLocaleDateString('id-ID')
-                });
-                ls(comKey, list);
-                cf.reset();
-                renderComms();
-            };
-        }
-    }
-}
-
-if (P === 'masuk') {
-    let mode = 0;
-    const f = $('#fm1');
-    const nameInput = f.n;
-    const msg = $('#ms');
-
-    $$('[data-t]').forEach(btn => {
-        btn.onclick = () => {
-            mode = +btn.dataset.t;
-            nameInput.hidden = !mode;
-            nameInput.required = !!mode;
-            $$('[data-t]').forEach(x => x.classList.toggle('on', x === btn));
-            msg.textContent = '';
-        };
-    });
-
-    f.onsubmit = e => {
-        e.preventDefault();
-        const accounts = ls('acc') || {};
-        const email = f.e.value.toLowerCase().trim();
-
-        if (mode) {
-            if (accounts[email]) {
-                msg.textContent = 'Alamat email ini sudah terdaftar.';
-                return;
-            }
-            accounts[email] = { n: nameInput.value.trim(), s: f.s.value };
-            ls('acc', accounts);
-            ls('u', { n: accounts[email].n, e: email });
-            location.href = 'index.html';
-        } else {
-            if (!accounts[email] || accounts[email].s !== f.s.value) {
-                msg.textContent = 'Email atau kata sandi tidak cocok.';
-                return;
-            }
-            ls('u', { n: accounts[email].n, e: email });
-            location.href = 'index.html';
+// Copy Share URL Tool
+const copyBtn = $('#copyShareBtn');
+if (copyBtn) {
+    copyBtn.onclick = () => {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(location.href);
+            copyBtn.firstElementChild.textContent = 'Tersalin ✓';
+            setTimeout(() => {
+                copyBtn.firstElementChild.textContent = 'Salin URL';
+            }, 2500);
         }
     };
-}
-
-// Mobile Drawer
-const bg = $('#bg');
-if (bg) {
-    bg.onclick = () => $('nav.main').classList.toggle('open');
 }
