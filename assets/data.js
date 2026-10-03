@@ -17,3 +17,7 @@ const A=[
 ].map((a,i)=>({id:i+1,t:a[0],c:a[1],d:a[2],v:a[3],tone:T[i%6]}));
 const V=[{t:'Istri Calon Bupati Indramayu nomor urut 3, Kunjungi Ketua Sikandi Brigade 08',yt:''},{t:'Organ NEW ARIMBI | Wedding Of Hilmi & Indah | Tugu-Sliyeg',yt:''}];
 const TAGS=['Pendidikan','Kuliner','Bumdesa','Timnas','Liga Inggris','Olahraga','Pilkada 2024','Piala Dunia 2026'];
+
+// Jembatan CMS: berita berstatus Terbit dan video Tayang dari CMS (admin/) otomatis tampil di portal.
+(function(){try{const r=JSON.parse(localStorage.getItem('cms_berita'));if(r&&r.length){const L=r.filter(x=>x.status=='Terbit').sort((a,b)=>b.tanggal.localeCompare(a.tanggal)||b.id-a.id);if(L.length){A.length=0;L.forEach((x,i)=>A.push({id:x.id,t:x.judul,c:x.kategori,d:x.tanggal,v:x.dibaca||0,tone:T[i%6],img:x.foto||'',isi:x.isi||''}))}}
+const v=JSON.parse(localStorage.getItem('cms_video'));if(v&&v.length){const L=v.filter(x=>x.status=='Tayang');if(L.length){V.length=0;L.forEach(x=>V.push({t:x.judul,yt:((x.link||'').match(/(?:youtu\.be\/|v=)([\w-]{11})/)||[])[1]||''}))}}}catch(e){}})();
