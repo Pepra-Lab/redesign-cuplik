@@ -775,3 +775,27 @@ if (copyBtn) {
         }
     };
 }
+
+// ===== Sesi login (hook kecil untuk auth & CMS) =====
+// Tidak mengubah tampilan guest. Hanya berjalan jika user sudah login (localStorage 'u').
+(() => {
+    const u = ls('u');
+    if (!u) return;
+    const staff = u.r && u.r !== 'Pembaca';
+    document.querySelectorAll('a[href="masuk.html"]').forEach(a => {
+        const label = a.querySelector('span');
+        if (label) label.textContent = 'Keluar'; else a.lastChild.textContent = ' Keluar';
+        a.title = 'Halo, ' + String(u.n).replace(/[<>&"]/g, '');
+        a.href = '#';
+        a.onclick = e => { e.preventDefault(); localStorage.removeItem('u'); location.reload(); };
+        if (staff) {
+            const p = a.cloneNode(true);
+            p.href = 'admin/index.html';
+            p.onclick = null;
+            p.title = 'Panel Redaksi';
+            const l = p.querySelector('span');
+            if (l) l.textContent = 'Panel'; else p.lastChild.textContent = ' Panel Redaksi';
+            a.parentNode.insertBefore(p, a);
+        }
+    });
+})();
