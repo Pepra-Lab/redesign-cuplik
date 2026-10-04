@@ -439,21 +439,7 @@ h1,h2,h3{font-family:'DM Sans',sans-serif;font-weight:800;line-height:1.15;margi
     }
 }
 
-.demo {
-    width: 100%;
-    margin-top: 12px;
-    border: 1.5px dashed var(--g);
-    background: none;
-    color: var(--g);
-    border-radius: 12px;
-    padding: 12px;
-    font: 700 14px 'DM Sans';
-    cursor: pointer
-}
 
-.demo:hover {
-    background: var(--y)
-}
 
 .rw {
     display: flex;
